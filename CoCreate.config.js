@@ -1,6 +1,6 @@
 module.exports = {
 	organization_id: "68c1b4380287b3575f2c074a",
-	apikey: "81ec660e-c54f-416e-cu71-87d8d36b85a3",
+	apikey: "bb39ef18-4dbb-4258-a210-ffb552a6c400",
 	host: {
 		$branch: {
 			main: "wss://cocre8tive.com",
