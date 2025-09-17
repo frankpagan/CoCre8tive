@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regenerative Medicine Vendor Portal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 text-slate-800">
+
+    <!-- Header and User Info (Fixed at the top) -->
+    <header
+        class="bg-white rounded-xl shadow-lg p-6 flex flex-col md:flex-row items-center justify-between mb-8 sticky top-4 z-50">
+        <div class="text-xl md:text-2xl font-bold text-slate-900">Regenerative Medicine Portal</div>
+        <div class="mt-4 md:mt-0 md:text-right">
+            <p class="text-sm font-medium text-slate-500">Device ID:</p>
+            <p id="userIdDisplay" class="font-mono text-xs md:text-sm text-slate-700 break-all"></p>
+            <div id="authStatus" class="mt-1 text-xs font-semibold text-green-600">Session Active</div>
+        </div>
+    </header>
+
+    <!-- Main Content Container (Updated for better responsiveness) -->
+    <div class="container mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8">
+
+        <!-- Product Grid -->
+        <main class="w-full lg:w-2/3">
+            <h2 class="text-2xl font-bold mb-6 text-slate-900">Product Catalog</h2>
+            <div id="loadingIndicator" class="text-center py-10 font-medium text-slate-500">
+                Loading products...
+            </div>
+            <!-- Grid updated to switch to 2 columns at 'md' breakpoint and 3 at 'xl' -->
+            <div id="productsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <!-- Product cards will be dynamically inserted here -->
+            </div>
+            <p id="noProductsMessage" class="hidden text-center py-10 text-slate-500 font-medium">No products available
+                at this time.</p>
+        </main>
+
+        <!-- Cart Panel -->
+        <aside class="w-full lg:w-1/3 flex flex-col gap-8">
+            <div class="p-6 bg-white rounded-xl shadow-lg sticky top-28 h-fit">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-slate-900">Your Cart</h3>
+                    <span id="cartItemCount"
+                        class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">0</span>
+                </div>
+                <div id="cartItemsContainer"
+                    class="divide-y divide-slate-200 min-h-[100px] max-h-[400px] overflow-y-auto">
+                    <!-- Cart items will be dynamically inserted here -->
+                    <div id="emptyCartMessage" class="text-center py-8 text-slate-400 font-medium text-sm">Your cart is
+                        empty.</div>
+                </div>
+                <div class="flex items-center justify-between font-bold text-xl mt-6 border-t pt-4 border-slate-200">
+                    <span>Total:</span>
+                    <span id="cartTotal">$0.00</span>
+                </div>
+                <button id="placeOrderBtn"
+                    class="w-full mt-6 py-3 px-6 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                    Place Purchase Order
+                </button>
+            </div>
+
+            <!-- Order History Panel -->
+            <div class="p-6 bg-white rounded-xl shadow-lg">
+                <h3 class="text-xl font-bold text-slate-900 mb-4">Order History</h3>
+                <div id="orderHistoryContainer"
+                    class="divide-y divide-slate-200 min-h-[50px] max-h-[300px] overflow-y-auto">
+                    <div id="noHistoryMessage" class="text-center py-8 text-slate-400 font-medium text-sm">No past
+                        orders.</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Dynamic Message Box (for success/error messages) -->
+        <div id="messageBox"
+            class="fixed bottom-4 right-4 bg-slate-800 text-white text-sm px-4 py-3 rounded-lg shadow-xl hidden z-[100]">
+            <span id="messageText"></span>
+        </div>
+
+        <!-- Order Detail Modal (Hidden by default) -->
+        <div id="orderDetailPanel"
+            class="hidden fixed top-0 left-0 w-full h-full bg-slate-900 bg-opacity-70 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto transform transition-transform duration-300 scale-95 opacity-0"
+                id="orderDetailContent">
+                <!-- Order details will be dynamically injected here -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Static Product Data ---
+        const products = [{
+            id: 'tirzepatide-5mg',
+            name: 'Tirzepatide - 5mg',
+            description: 'For Obesity, Case Price: $375, Case Over 20k: $330',
+            price: 375.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Tirzepatide'
+        }, {
+            id: 'tirzepatide-10mg',
+            name: 'Tirzepatide - 10mg',
+            description: 'For Obesity, Case Price: $650, Case Over 20k: $572',
+            price: 650.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Tirzepatide'
+        }, {
+            id: 'tirzepatide-30mg',
+            name: 'Tirzepatide - 30mg',
+            description: 'For Obesity, Case Price: $1,100, Case Over 20k: $968',
+            price: 1100.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Tirzepatide'
+        }, {
+            id: 'tirzepatide-60mg',
+            name: 'Tirzepatide - 60mg',
+            description: 'For Obesity, Case Price: $1,900, Case Over 20k: $1,672',
+            price: 1900.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Tirzepatide'
+        }, {
+            id: 'semaglutide-5mg',
+            name: 'Semaglutide - 5mg',
+            description: 'For Obesity, Case Price: $310, Case Over 20k: $273',
+            price: 310.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Semaglutide'
+        }, {
+            id: 'semaglutide-10mg',
+            name: 'Semaglutide - 10mg',
+            description: 'For Obesity, Case Price: $400, Case Over 20k: $352',
+            price: 400.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Semaglutide'
+        }, {
+            id: 'retatrutide-5mg',
+            name: 'Retatrutide - 5mg',
+            description: 'For Obesity, Case Price: $400, Case Over 20k: $352',
+            price: 400.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Retatrutide'
+        }, {
+            id: 'retatrutide-10mg',
+            name: 'Retatrutide - 10mg',
+            description: 'For Obesity, Case Price: $700, Case Over 20k: $616',
+            price: 700.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Retatrutide'
+        }, {
+            id: 'retatrutide-20mg',
+            name: 'Retatrutide - 20mg',
+            description: 'For Obesity, Case Price: $1,100, Case Over 20k: $968',
+            price: 1100.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Retatrutide'
+        }, {
+            id: 'sermorelin-5mg',
+            name: 'Sermorelin - 5mg',
+            description: 'For Growth Hormone, Case Price: $95, Case Over 20k: $84',
+            price: 95.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Sermorelin'
+        }, {
+            id: 'ipamorelin-5mg',
+            name: 'Ipamorelin - 5mg',
+            description: 'For Growth Hormone, Case Price: $100, Case Over 20k: $88',
+            price: 100.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Ipamorelin'
+        }, {
+            id: 'ipamorelin-10mg',
+            name: 'Ipamorelin - 10mg',
+            description: 'For Growth Hormone, Case Price: $150, Case Over 20k: $132',
+            price: 150.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Ipamorelin'
+        }, {
+            id: 'tesamorelin-10mg',
+            name: 'Tesamorelin - 10mg',
+            description: 'For Growth Hormone, Case Price: $200, Case Over 20k: $176',
+            price: 200.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Tesamorelin'
+        }, {
+            id: 'cjc-with-dac-5mg',
+            name: 'CJC with DAC - 5mg',
+            description: 'For Growth Hormone, Case Price: $160, Case Over 20k: $141',
+            price: 160.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=CJC+with+DAC'
+        }, {
+            id: 'ipamorelin-cjc-10mg',
+            name: 'Ipamorelin / CJC - 10mg',
+            description: 'For Growth Hormone, Case Price: $235, Case Over 20k: $207',
+            price: 235.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Ipamorelin+/+CJC'
+        }, {
+            id: 'ghrp-2-5mg',
+            name: 'GHRP-2 - 5mg',
+            description: 'For Growth Hormone, Case Price: $110, Case Over 20k: $97',
+            price: 110.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=GHRP-2'
+        }, {
+            id: 'ghrp-6-10mg',
+            name: 'GHRP-6 - 10mg',
+            description: 'For Growth Hormone, Case Price: $125, Case Over 20k: $110',
+            price: 125.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=GHRP-6'
+        }, {
+            id: 'aod-5mg',
+            name: 'AOD - 5mg',
+            description: 'For Growth Hormone, Case Price: $120, Case Over 20k: $106',
+            price: 120.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=AOD'
+        }, {
+            id: 'igf-lr3-1mg',
+            name: 'IGF-LR3 - 1mg',
+            description: 'For Growth Hormone, Case Price: $600, Case Over 20k: $528',
+            price: 600.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=IGF-LR3'
+        }, {
+            id: 'bpc-157-5mg',
+            name: 'BPC-157 - 5mg',
+            description: 'For Healing, Case Price: $90, Case Over 20k: $79',
+            price: 90.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=BPC-157'
+        }, {
+            id: 'bpc-158-10mg',
+            name: 'BPC-158 - 10mg',
+            description: 'For Healing, Case Price: $170, Case Over 20k: $150',
+            price: 170.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=BPC-158'
+        }, {
+            id: 'tb-500-5mg',
+            name: 'TB-500 - 5mg',
+            description: 'For Healing, Case Price: $160, Case Over 20k: $141',
+            price: 160.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=TB-500'
+        }, {
+            id: 'bpc-tb-10mg',
+            name: 'BPC/TB - 10mg',
+            description: 'For Healing, Case Price: $300, Case Over 20k: $264',
+            price: 300.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=BPC/TB'
+        }, {
+            id: 'ta1-10mg',
+            name: 'TA1 - 10mg',
+            description: 'For Healing, Case Price: $610, Case Over 20k: $537',
+            price: 610.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=TA1'
+        }, {
+            id: 'thymulin-10mg',
+            name: 'Thymulin - 10mg',
+            description: 'For Healing, Case Price: $130, Case Over 20k: $114',
+            price: 130.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Thymulin'
+        }, {
+            id: 'dsip-5mg',
+            name: 'DSIP - 5mg',
+            description: 'For Healing, Case Price: $125, Case Over 20k: $110',
+            price: 125.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=DSIP'
+        }, {
+            id: 'epithalon-10mg',
+            name: 'Epithalon - 10mg',
+            description: 'For Healing, Case Price: $110, Case Over 20k: $97',
+            price: 110.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Epithalon'
+        }, {
+            id: 'ghk-100mg',
+            name: 'GHK - 100mg',
+            description: 'For Healing, Case Price: $130, Case Over 20k: $114',
+            price: 130.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=GHK'
+        }, {
+            id: 'nad-100mg',
+            name: 'NAD - 100mg',
+            description: 'For Healing, Case Price: $130, Case Over 20k: $114',
+            price: 130.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=NAD'
+        }, {
+            id: 'nad-500mg',
+            name: 'NAD - 500mg',
+            description: 'For Healing, Case Price: $350, Case Over 20k: $308',
+            price: 350.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=NAD'
+        }, {
+            id: 'll-37-5mg',
+            name: 'LL-37 - 5mg',
+            description: 'For Healing, Case Price: $190, Case Over 20k: $167',
+            price: 190.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=LL-37'
+        }, {
+            id: 'pinealon-10mg',
+            name: 'Pinealon - 10mg',
+            description: 'For Healing, Case Price: $140, Case Over 20k: $123',
+            price: 140.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Pinealon'
+        }, {
+            id: 'glow-100mg',
+            name: 'GLOW - 100mg',
+            description: 'For Healing, Case Price: $160, Case Over 20k: $141',
+            price: 160.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=GLOW'
+        }, {
+            id: 'mots-c-10mg',
+            name: 'MOTS-C - 10mg',
+            description: 'For Healing, Case Price: $155, Case Over 20k: $136',
+            price: 155.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=MOTS-C'
+        }, {
+            id: 'ss-31-10mg',
+            name: 'SS-31 - 10mg',
+            description: 'For Healing, Case Price: $175, Case Over 20k: $154',
+            price: 175.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=SS-31'
+        }, {
+            id: 'fox-04-10mg',
+            name: 'FOX-04 - 10mg',
+            description: 'For Healing, Case Price: $325, Case Over 20k: $286',
+            price: 325.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=FOX-04'
+        }, {
+            id: 'kisspeption-10mg',
+            name: 'Kisspeption - 10mg',
+            description: 'For Healing, Case Price: $170, Case Over 20k: $150',
+            price: 170.00,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Kisspeption'
+        }, {
+            id: 'bpc-157-500mcg',
+            name: 'BPC-157 - 500mcg',
+            description: 'Oral Peptide, Price not listed',
+            price: 0,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=BPC-157'
+        }, {
+            id: 'kpv-500mcg',
+            name: 'KPV - 500mcg',
+            description: 'Oral Peptide, Price not listed',
+            price: 0,
+            imageUrl: 'https://placehold.co/400x225/e2e8f0/94a3b8?text=KPV'
+        }];
+
+
+        // --- IndexedDB Helper Class ---
+        class IndexedDBHelper {
+            constructor(dbName, storeName) {
+                this.dbName = dbName;
+                this.storeName = storeName;
+            }
+
+            openDatabase() {
+                return new Promise((resolve, reject) => {
+                    if (!window.indexedDB) {
+                        return reject(new Error("IndexedDB not supported."));
+                    }
+                    const request = indexedDB.open(this.dbName, 1);
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains('cart')) {
+                            db.createObjectStore('cart', {
+                                keyPath: 'id'
+                            });
+                        }
+                        if (!db.objectStoreNames.contains('orders')) {
+                            db.createObjectStore('orders', {
+                                keyPath: 'id'
+                            });
+                        }
+                    };
+
+                    request.onsuccess = (event) => {
+                        resolve(event.target.result);
+                    };
+
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            async getItems() {
+                const db = await this.openDatabase();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(this.storeName, 'readonly');
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.getAll();
+                    request.onsuccess = (event) => {
+                        resolve(event.target.result);
+                    };
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            async putItem(item) {
+                const db = await this.openDatabase();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(this.storeName, 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.put(item);
+                    request.onsuccess = () => {
+                        resolve(item);
+                    };
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            async deleteItem(id) {
+                const db = await this.openDatabase();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(this.storeName, 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.delete(id);
+                    request.onsuccess = () => {
+                        resolve();
+                    };
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            async clearStore() {
+                const db = await this.openDatabase();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(this.storeName, 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.clear();
+                    request.onsuccess = () => {
+                        resolve();
+                    };
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+        }
+
+        const cartDB = new IndexedDBHelper('VendorPortalDB', 'cart');
+        const orderHistoryDB = new IndexedDBHelper('VendorPortalDB', 'orders');
+
+
+        // --- DOM Elements ---
+        const productsContainer = document.getElementById('productsContainer');
+        const cartItemsContainer = document.getElementById('cartItemsContainer');
+        const orderHistoryContainer = document.getElementById('orderHistoryContainer');
+        const orderDetailPanel = document.getElementById('orderDetailPanel');
+        const orderDetailContent = document.getElementById('orderDetailContent');
+        const cartTotalDisplay = document.getElementById('cartTotal');
+        const cartItemCountDisplay = document.getElementById('cartItemCount');
+        const placeOrderBtn = document.getElementById('placeOrderBtn');
+        const noProductsMessage = document.getElementById('noProductsMessage');
+        const emptyCartMessage = document.getElementById('emptyCartMessage');
+        const noHistoryMessage = document.getElementById('noHistoryMessage');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        // Use a local unique ID instead of Firebase user ID
+        const userId = 'device-' + crypto.randomUUID();
+
+        // --- Helper Functions ---
+
+        /**
+         * Displays a temporary message to the user.
+         * @param {string} text - The message to display.
+         * @param {number} duration - The duration in milliseconds to show the message.
+         */
+        const showMessage = (text, duration = 3000) => {
+            const messageBox = document.getElementById('messageBox');
+            const messageText = document.getElementById('messageText');
+            messageText.textContent = text;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, duration);
+        };
+
+        /**
+         * Closes the order detail panel.
+         */
+        const closeOrderDetailPanel = () => {
+            orderDetailContent.classList.remove('scale-100', 'opacity-100');
+            orderDetailContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                orderDetailPanel.classList.add('hidden');
+            }, 300);
+        };
+
+        /**
+         * Shows the order detail panel with a specific order's data.
+         * @param {Object} order - The order object to display.
+         */
+        const showOrderDetailPanel = (order) => {
+            const orderDate = new Date(order.orderDate).toLocaleString();
+            const itemsHtml = order.items.map(item => `
+                <div class="flex justify-between items-center py-2">
+                    <span class="font-medium text-slate-800">${item.name}</span>
+                    <span class="text-sm text-slate-500">${item.quantity} &times; $${item.price.toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            orderDetailContent.innerHTML = `
+                <div class="flex items-center justify-between border-b pb-4 mb-4">
+                    <h4 class="text-2xl font-bold text-slate-900">Order Details</h4>
+                    <button id="closeOrderDetailBtn" class="text-slate-500 hover:text-slate-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <p class="text-sm font-medium text-slate-500">Order ID:</p>
+                    <p class="font-mono text-sm text-slate-700 break-all">${order.id.substring(0, 8)}...</p>
+                </div>
+                <div class="mb-4">
+                    <p class="text-sm font-medium text-slate-500">Order Date:</p>
+                    <p class="font-normal text-slate-700">${orderDate}</p>
+                </div>
+                <div class="mb-4">
+                    <p class="text-sm font-medium text-slate-500">Total:</p>
+                    <p class="text-lg font-bold text-green-600">$${order.total}</p>
+                </div>
+                <div class="divide-y divide-slate-200">
+                    <h5 class="font-semibold text-lg text-slate-900 mb-2 pt-2">Items</h5>
+                    ${itemsHtml}
+                </div>
+            `;
+
+            orderDetailPanel.classList.remove('hidden');
+            setTimeout(() => {
+                orderDetailContent.classList.remove('scale-95', 'opacity-0');
+                orderDetailContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            document.getElementById('closeOrderDetailBtn').addEventListener('click', closeOrderDetailPanel);
+        };
+
+
+        // --- Product and Cart Rendering Functions ---
+
+        /**
+         * Renders the list of products.
+         * @param {Array<Object>} products - The array of product objects.
+         */
+        const renderProducts = (products) => {
+            productsContainer.innerHTML = '';
+            loadingIndicator.classList.add('hidden');
+            if (products.length === 0) {
+                noProductsMessage.classList.remove('hidden');
+                return;
+            }
+            noProductsMessage.classList.add('hidden');
+
+            products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'bg-white rounded-xl shadow-md overflow-hidden transition-transform duration-200 hover:scale-105 hover:shadow-xl flex flex-col justify-between';
+                productCard.innerHTML = `
+                    <div class="p-6">
+                        <!-- Product Image Placeholder -->
+                        <div class="aspect-video bg-slate-200 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+                             <img src="${product.imageUrl || 'https://placehold.co/400x225/e2e8f0/94a3b8?text=Product+Image'}" alt="${product.name}" class="w-full h-full object-cover">
+                        </div>
+                        <h4 class="text-lg font-semibold text-slate-900 mb-2">${product.name}</h4>
+                        <p class="text-sm text-slate-500 mb-4">${product.description}</p>
+                    </div>
+                    <div class="p-6 bg-slate-50 flex items-center justify-between">
+                        <span class="text-xl font-bold text-blue-600">$${product.price.toFixed(2)}</span>
+                        <div class="flex items-center gap-2">
+                             <input type="number" id="qty-${product.id}" value="1" min="1" class="w-16 px-2 py-1 text-center border rounded-lg text-sm">
+                             <button data-product-id="${product.id}" class="addToCartBtn px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-md hover:bg-blue-700 transition duration-200">
+                                 Add
+                             </button>
+                        </div>
+                    </div>
+                `;
+                productsContainer.appendChild(productCard);
+
+                // Add event listener to the "Add to Cart" button
+                productCard.querySelector('.addToCartBtn').addEventListener('click', () => {
+                    const quantity = parseInt(document.getElementById(`qty-${product.id}`).value, 10);
+                    handleAddToCart(product, quantity);
+                });
+            });
+        };
+
+        /**
+         * Renders the list of cart items.
+         * @param {Array<Object>} cart - The array of cart item objects.
+         */
+        const renderCart = (cart) => {
+            cartItemsContainer.innerHTML = '';
+            let total = 0;
+            if (cart.length === 0) {
+                emptyCartMessage.classList.remove('hidden');
+                placeOrderBtn.disabled = true;
+            } else {
+                emptyCartMessage.classList.add('hidden');
+                placeOrderBtn.disabled = false;
+            }
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                const cartItem = document.createElement('div');
+                cartItem.className = 'flex items-center gap-4 py-4';
+                cartItem.innerHTML = `
+                    <div class="flex-grow">
+                        <p class="font-medium text-slate-800">${item.name}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <label for="cart-qty-${item.id}" class="sr-only">Quantity for ${item.name}</label>
+                            <input type="number" id="cart-qty-${item.id}" value="${item.quantity}" min="0" class="w-16 px-2 py-1 text-center border rounded-lg text-sm cart-qty-input" data-product-id="${item.id}">
+                            <p class="text-sm text-slate-500">&times; $${item.price.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <span class="font-semibold text-slate-700">$${itemTotal.toFixed(2)}</span>
+                    <button data-product-id="${item.id}" class="removeBtn text-red-500 hover:text-red-700 transition duration-200 p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.728-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                `;
+                cartItemsContainer.appendChild(cartItem);
+
+                // Add event listener to the quantity input field
+                cartItem.querySelector('.cart-qty-input').addEventListener('change', (event) => {
+                    const newQuantity = parseInt(event.target.value, 10);
+                    const productId = event.target.dataset.productId;
+                    handleUpdateCartQuantity(productId, newQuantity);
+                });
+
+                // Add event listener to the "Remove" button
+                cartItem.querySelector('.removeBtn').addEventListener('click', () => handleRemoveFromCart(item.id));
+            });
+
+            cartTotalDisplay.textContent = `$${total.toFixed(2)}`;
+            cartItemCountDisplay.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+        };
+
+        /**
+         * Renders the order history list.
+         * @param {Array<Object>} history - The array of order history objects.
+         */
+        const renderOrderHistory = (history) => {
+            orderHistoryContainer.innerHTML = '';
+            if (history.length === 0) {
+                noHistoryMessage.classList.remove('hidden');
+                return;
+            }
+            noHistoryMessage.classList.add('hidden');
+
+            history.forEach(order => {
+                const orderDate = new Date(order.orderDate).toLocaleString();
+                const total = order.total;
+                const itemsCount = order.items.length;
+                const orderHtml = document.createElement('div');
+                orderHtml.className = 'py-4 cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2 transition duration-150 flex flex-col items-start gap-1';
+                orderHtml.innerHTML = `
+                    <div class="flex items-center justify-between w-full">
+                        <p class="text-sm font-semibold text-slate-800">Order ID: <span class="font-normal text-slate-600">${order.id.substring(0, 8)}...</span></p>
+                        <button class="editOrderBtn px-2 py-1 bg-gray-200 text-gray-700 rounded-md text-xs font-medium hover:bg-gray-300 transition duration-200" data-order-id="${order.id}">Edit</button>
+                    </div>
+                    <p class="text-xs text-slate-500">${orderDate}</p>
+                    <p class="text-sm font-semibold text-slate-800">Total: <span class="text-green-600 font-bold">$${total}</span></p>
+                    <p class="text-sm font-normal text-slate-500">${itemsCount} item(s)</p>
+                `;
+                orderHistoryContainer.appendChild(orderHtml);
+
+                orderHtml.querySelector('.editOrderBtn').addEventListener('click', (event) => {
+                    event.stopPropagation(); // Prevent the parent click from firing
+                    handleEditOrder(order.id);
+                });
+
+                orderHtml.addEventListener('click', () => showOrderDetailPanel(order));
+            });
+        };
+
+        // --- Cart and Order Logic ---
+
+        /**
+         * Adds a product to the cart or increments its quantity.
+         * @param {Object} product - The product object to add.
+         * @param {number} quantityToAdd - The quantity to add.
+         */
+        const handleAddToCart = async (product, quantityToAdd) => {
+            if (quantityToAdd <= 0) {
+                showMessage("Please enter a quantity greater than zero.");
+                return;
+            }
+            try {
+                const cartItems = await cartDB.getItems();
+                const existingItem = cartItems.find(item => item.id === product.id);
+
+                if (existingItem) {
+                    existingItem.quantity += quantityToAdd;
+                    await cartDB.putItem(existingItem);
+                } else {
+                    const itemToAdd = {
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        quantity: quantityToAdd
+                    };
+                    await cartDB.putItem(itemToAdd);
+                }
+
+                updateCartUI();
+                showMessage(`Added ${quantityToAdd} of ${product.name} to cart.`);
+            } catch (error) {
+                console.error("Error adding to cart:", error);
+                showMessage("Failed to add item to cart. Please check console.");
+            }
+        };
+
+        /**
+         * Updates the quantity of a product in the cart.
+         * @param {string} productId - The ID of the product to update.
+         * @param {number} newQuantity - The new quantity.
+         */
+        const handleUpdateCartQuantity = async (productId, newQuantity) => {
+            if (newQuantity < 0 || isNaN(newQuantity)) {
+                showMessage("Invalid quantity. Please enter a number greater than or equal to 0.");
+                return;
+            }
+            try {
+                if (newQuantity === 0) {
+                    await handleRemoveFromCart(productId);
+                } else {
+                    const cartItems = await cartDB.getItems();
+                    const itemToUpdate = cartItems.find(item => item.id === productId);
+                    if (itemToUpdate) {
+                        itemToUpdate.quantity = newQuantity;
+                        await cartDB.putItem(itemToUpdate);
+                        showMessage("Cart quantity updated.");
+                    }
+                }
+                updateCartUI();
+            } catch (error) {
+                console.error("Error updating cart quantity:", error);
+                showMessage("Failed to update cart quantity. Please check console.");
+            }
+        };
+
+        /**
+         * Removes a product from the cart.
+         * @param {string} productId - The ID of the product to remove.
+         */
+        const handleRemoveFromCart = async (productId) => {
+            try {
+                await cartDB.deleteItem(productId);
+                updateCartUI();
+                showMessage("Item removed from cart.");
+            } catch (error) {
+                console.error("Error removing from cart:", error);
+                showMessage("Failed to remove item. Please check console.");
+            }
+        };
+
+        /**
+         * Places a purchase order and clears the cart, saving to local history.
+         */
+        const handlePlaceOrder = async () => {
+            try {
+                const cartItems = await cartDB.getItems();
+
+                if (cartItems.length === 0) {
+                    showMessage("Your cart is empty. Please add items before placing an order.");
+                    return;
+                }
+
+                // Get cart items and calculate total
+                const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+                // Store the order locally
+                const orderForHistory = {
+                    id: crypto.randomUUID(),
+                    orderDate: new Date().toISOString(),
+                    items: cartItems, // Store items as a full array for local display
+                    total: total.toFixed(2),
+                };
+                await orderHistoryDB.putItem(orderForHistory);
+
+                await cartDB.clearStore();
+                updateCartUI();
+                updateOrderHistoryUI();
+
+                showMessage("Your order has been successfully placed.");
+            } catch (error) {
+                console.error("Error placing order:", error);
+                showMessage("Failed to place purchase order. Please check console.");
+            }
+        };
+
+        /**
+         * Loads a previous order's items into the current cart for editing.
+         * @param {string} orderId - The ID of the order to edit.
+         */
+        const handleEditOrder = async (orderId) => {
+            try {
+                const order = (await orderHistoryDB.getItems()).find(o => o.id === orderId);
+                if (!order) {
+                    showMessage("Order not found!");
+                    return;
+                }
+
+                // Clear the current cart
+                await cartDB.clearStore();
+
+                // Add items from the selected order to the cart
+                for (const item of order.items) {
+                    await cartDB.putItem(item);
+                }
+
+                updateCartUI();
+                showMessage(`Order ${order.id.substring(0, 8)}... loaded to cart for editing.`);
+
+            } catch (error) {
+                console.error("Error editing order:", error);
+                showMessage("Failed to load order for editing. Please check console.");
+            }
+        };
+
+        const updateCartUI = async () => {
+            const cartItems = await cartDB.getItems();
+            renderCart(cartItems);
+        };
+
+        const updateOrderHistoryUI = async () => {
+            const orderHistory = await orderHistoryDB.getItems();
+            // Sort by date, newest first
+            orderHistory.sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
+            renderOrderHistory(orderHistory);
+        };
+
+        // --- Event Listeners ---
+        placeOrderBtn.addEventListener('click', handlePlaceOrder);
+
+        // Start the application
+        window.onload = () => {
+            userIdDisplay.textContent = userId;
+            renderProducts(products);
+            updateCartUI();
+            updateOrderHistoryUI();
+        };
+    </script>
+</body>
+
+</html>
